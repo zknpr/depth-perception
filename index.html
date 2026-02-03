@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depth Perception</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Load Babel for JSX support -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom drag styling overrides */
+        .dragging { opacity: 0.5; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .shake { animation: shake 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="bg-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- ICONS (Inline SVGs to remove external dependencies) ---
+        const Icons = {
+            History: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/><path d="M3 3v9h9"/><path d="M12 7v5l4 2"/></svg>,
+            Trophy: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>,
+            Check: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="20 6 9 17 4 12"/></svg>,
+            X: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+            RefreshCw: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
+            GripVertical: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>,
+            Info: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>,
+            ExternalLink: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
+            ArrowRight: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>,
+            Lightbulb: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5 0-2.2-1.8-4-4-4a4 4 0 0 0-4 4c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>,
+            Lock: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            Unlock: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+        };
+
+        // --- GAME DATA ---
+        const INSTRUCTIONS_TEXT = "Drag and drop the events to arrange them in chronological order, from earliest (top) to latest (bottom).";
+
+        const GAME_DATA = [
+          {
+            category: "Leviathan News",
+            events: [
+              { id: 'e1', date: '1/3/2026', text: "Aave Labs offers an olive branch in a move to ease governance tensions with non-protocol revenue sharing.", url: "https://leviathannews.xyz/aave-labs-offers-an-olive-branch-in-a-move-to-ease-governance-tensions-with-non-protocol-revenue-sharing" },
+              { id: 'e2', date: '1/7/2026', text: "Japan’s 30Y Government Bond Yield surges to a new record high of 3.52%.", url: "https://leviathannews.xyz/japans-30y-government-bond-yield-surges-to-a-new-record-high-of-352" },
+              { id: 'e3', date: '1/12/2026', text: "Yearn’s yYB crosses 1 million YB locked", url: "https://leviathannews.xyz/yearns-yyb-crosses-1-million-yb-locked" },
+              { id: 'e4', date: '1/19/2026', text: "New York Stock Exchange announces a tokenization platform for 24/7 digital securities trading with instant settlement and stablecoin funding", url: "https://leviathannews.xyz/new-york-stock-exchange-announces-a-tokenization-platform-for-247-digital-securities-trading-with-instant-settlement-and-stablecoin-funding" },
+              { id: 'e5', date: '1/24/2026', text: "Defillama releases a python SDK for their APIs", url: "https://leviathannews.xyz/defillama-releases-a-python-sdk-for-their-apis" },
+            ]
+          }
+        ];
+
+        // --- COMPONENTS ---
+
+        const Header = ({ category, streak }) => (
+          <div className="w-full max-w-lg mx-auto mb-6 text-center">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <img src="leviathan-200x200-circle.png" alt="Leviathan Logo" className="w-12 h-12 object-contain" />
+              <h1 className="text-3xl font-serif font-bold text-[#021f53] tracking-tight">Depth Perception</h1>
+            </div>
+            <div className="flex justify-between items-center px-4">
+                <p className="text-sm font-medium text-[#021f53]/70 uppercase tracking-widest">{category}</p>
+                <div className="flex items-center gap-1 bg-[#c1ff72] px-3 py-1 rounded-full shadow-sm">
+                    <Icons.Trophy className="w-3 h-3 text-[#021f53]" />
+                    <span className="text-xs font-bold text-[#021f53]">Streak: {streak}</span>
+                </div>
+            </div>
+            <div className="h-px bg-[#d9d9d9] mt-3 mx-4"></div>
+          </div>
+        );
+
+        const Card = ({ event, index, total, isDragging, gameWon, isHinted, isLocked, status, onDragStart, onDragOver, onDragEnd, onTouchStart, onToggleLock }) => {
+          let borderColor = "border-[#d9d9d9]";
+          let bgColor = "bg-[#ffffff]";
+          let statusIcon = null;
+
+          const isDateRevealed = gameWon || isHinted;
+          
+          let showCorrectStyle = false;
+          let showIncorrectStyle = false;
+
+          if (gameWon) {
+             if (status === 'correct') showCorrectStyle = true;
+             else showIncorrectStyle = true;
+          } else if (isHinted) {
+             if (status === 'correct') showCorrectStyle = true;
+          }
+
+          if (showCorrectStyle) {
+              borderColor = "border-[#c1ff72]";
+              bgColor = "bg-[#c1ff72]/20";
+              statusIcon = <Icons.Check className="w-5 h-5 text-[#021f53]" />;
+          } else if (showIncorrectStyle) {
+              borderColor = "border-red-400";
+              bgColor = "bg-red-50";
+              statusIcon = <Icons.X className="w-5 h-5 text-red-500" />;
+          }
+
+          // Use lock style if locked by user
+          if (isLocked && !gameWon) {
+             borderColor = "border-[#021f53]"; 
+          }
+
+          return (
+            <div
+              draggable={!gameWon && !isLocked}
+              onDragStart={(e) => !gameWon && !isLocked && onDragStart(e, index)}
+              onDragOver={(e) => onDragOver(e, index)}
+              onDragEnd={onDragEnd}
+              onTouchStart={(e) => !gameWon && !isLocked && onTouchStart(e, index)}
+              className={`
+                relative flex items-center gap-4 p-4 mb-3 rounded-lg border-l-4 shadow-sm transition-all duration-200
+                ${borderColor} ${bgColor}
+                ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}
+                ${(!gameWon && !isLocked) ? 'cursor-grab active:cursor-grabbing hover:shadow-md' : ''}
+                ${isLocked ? 'bg-gray-50' : ''}
+              `}
+            >
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold font-serif text-sm
+                    ${isLocked ? 'bg-[#021f53] text-white' : 'bg-[#d9d9d9] text-[#021f53]'}
+                `}>
+                    {index + 1}
+                </div>
+
+              <div className="flex-grow">
+                <div className="flex items-start justify-between gap-2">
+                    <p className="text-[#000000] font-medium leading-snug">{event.text}</p>
+                    {gameWon && event.url && (
+                        <Icons.ExternalLink className="w-4 h-4 text-[#021f53] flex-shrink-0 mt-1" />
+                    )}
+                </div>
+                
+                <div className={`
+                    overflow-hidden transition-all duration-500 ease-out
+                    ${isDateRevealed ? 'max-h-10 mt-1 opacity-100' : 'max-h-0 opacity-0'}
+                `}>
+                    <p className={`text-sm font-bold ${showCorrectStyle ? 'text-[#021f53]' : (showIncorrectStyle ? 'text-red-600' : 'text-[#021f53]')}`}>
+                        {event.date}
+                    </p>
+                </div>
+              </div>
+
+              {/* Action Area: Lock + Grip */}
+              <div className="flex-shrink-0 flex items-center gap-2 text-[#d9d9d9]">
+                {!gameWon && (
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleLock(event.id);
+                        }}
+                        className={`p-1 rounded-md hover:bg-gray-100 transition-colors ${isLocked ? 'text-[#021f53]' : 'text-gray-400'}`}
+                        title={isLocked ? "Unlock card" : "Lock card in place"}
+                    >
+                        {isLocked ? <Icons.Lock className="w-4 h-4" /> : <Icons.Unlock className="w-4 h-4" />}
+                    </button>
+                )}
+                
+                {gameWon ? statusIcon : <Icons.GripVertical className={`w-5 h-5 ${isLocked ? 'opacity-30' : ''}`} />}
+              </div>
+            </div>
+          );
+        };
+
+        const ResultModal = ({ isWinner, score, onTryAgain, onReview }) => (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000000]/50 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+            <div className="bg-[#ffffff] rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center transform scale-100 transition-all border border-[#d9d9d9]">
+              <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isWinner ? 'bg-[#c1ff72]/30' : 'bg-[#d9d9d9]/30'}`}>
+                {isWinner ? (
+                    <Icons.Trophy className="w-8 h-8 text-[#021f53]" />
+                ) : (
+                    <Icons.History className="w-8 h-8 text-[#021f53]" />
+                )}
+              </div>
+              
+              <h2 className="text-2xl font-bold text-[#021f53] mb-2">
+                {isWinner ? "Timeline Mastered!" : "Keep Trying!"}
+              </h2>
+              
+              <p className="text-[#000000]/70 mb-6">
+                {isWinner 
+                    ? "Perfect! You've unlocked the timeline." 
+                    : `You have ${score} out of 5 events in the correct slot.`}
+              </p>
+
+              {isWinner ? (
+                  <button
+                    onClick={onReview}
+                    className="w-full py-3 px-4 bg-[#021f53] hover:opacity-90 text-[#ffffff] font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
+                  >
+                    <Icons.ArrowRight className="w-5 h-5" />
+                    Review & Read Stories
+                  </button>
+              ) : (
+                  <button
+                    onClick={onTryAgain}
+                    className="w-full py-3 px-4 bg-[#021f53] hover:opacity-90 text-[#ffffff] font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
+                  >
+                    <Icons.RefreshCw className="w-5 h-5" />
+                    Keep Trying
+                  </button>
+              )}
+            </div>
+          </div>
+        );
+
+        const Instructions = () => (
+            <div className="bg-[#021f53]/5 border border-[#021f53]/10 rounded-lg p-4 mb-6 text-sm text-[#021f53] flex items-start gap-3">
+                <Icons.Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <p>{INSTRUCTIONS_TEXT}</p>
+            </div>
+        );
+
+        function App() {
+          const [currentSetIndex, setCurrentSetIndex] = React.useState(0);
+          const [items, setItems] = React.useState([]);
+          const [gameWon, setGameWon] = React.useState(false);
+          const [draggedItemIndex, setDraggedItemIndex] = React.useState(null);
+          const [streak, setStreak] = React.useState(0);
+          const [showModal, setShowModal] = React.useState(false);
+          const [currentScore, setCurrentScore] = React.useState(0);
+          
+          // Hint States
+          const [hintsLeft, setHintsLeft] = React.useState(3);
+          const [hintedEventIds, setHintedEventIds] = React.useState(new Set());
+          const [hintMessage, setHintMessage] = React.useState("");
+
+          // Lock States: Map of ItemID -> LockedIndex
+          const [lockedItems, setLockedItems] = React.useState({});
+          
+          const listRef = React.useRef(null);
+
+          React.useEffect(() => {
+            loadPuzzle();
+          }, [currentSetIndex]);
+
+          const loadPuzzle = () => {
+            const originalEvents = [...GAME_DATA[currentSetIndex].events];
+            const shuffled = [...originalEvents].sort(() => Math.random() - 0.5);
+            setItems(shuffled);
+            setGameWon(false);
+            setShowModal(false);
+            setCurrentScore(0);
+            setHintsLeft(3);
+            setHintedEventIds(new Set());
+            setLockedItems({});
+            setHintMessage("");
+          };
+
+          const handleLockToggle = (itemId) => {
+              setLockedItems(prev => {
+                  const newLocks = { ...prev };
+                  if (newLocks[itemId] !== undefined) {
+                      // Unlock
+                      delete newLocks[itemId];
+                  } else {
+                      // Lock at current index
+                      const currentIndex = items.findIndex(i => i.id === itemId);
+                      if (currentIndex !== -1) {
+                          newLocks[itemId] = currentIndex;
+                      }
+                  }
+                  return newLocks;
+              });
+          };
+
+          const handleHint = () => {
+            if (hintsLeft <= 0 || gameWon) return;
+
+            const sortedByDate = [...items].slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+            const correctCandidates = [];
+            items.forEach((item, index) => {
+                if (item.id === sortedByDate[index].id && !hintedEventIds.has(item.id)) {
+                    correctCandidates.push(item);
+                }
+            });
+
+            if (correctCandidates.length > 0) {
+                const randomCorrect = correctCandidates[Math.floor(Math.random() * correctCandidates.length)];
+                setHintedEventIds(prev => new Set(prev).add(randomCorrect.id));
+                setHintsLeft(prev => prev - 1);
+                setHintMessage("");
+            } else {
+                setHintMessage("No correct placements to confirm yet!");
+                setTimeout(() => setHintMessage(""), 2000);
+            }
+          };
+
+          const handleDragStart = (e, index) => {
+            const item = items[index];
+            if (gameWon || lockedItems[item.id] !== undefined) return;
+            
+            setDraggedItemIndex(index);
+            e.dataTransfer.effectAllowed = "move";
+          };
+
+          const handleDragOver = (e, overIndex) => {
+            e.preventDefault();
+            if (draggedItemIndex === null || draggedItemIndex === overIndex) return;
+            
+            const draggedItem = items[draggedItemIndex];
+            
+            // Reconstruct the list preserving locked items' positions
+            const locks = { ...lockedItems };
+            
+            // Check safety
+            if (locks[draggedItem.id] !== undefined) return;
+
+            // Get mobile items (not locked)
+            const mobileItems = items.filter(item => locks[item.id] === undefined);
+            
+            // Find current and target indices in the MOBILE list
+            const currentMobileIndex = mobileItems.findIndex(i => i.id === draggedItem.id);
+            
+            // Calculate target mobile index based on overIndex
+            let targetMobileIndex = 0;
+            for (let i = 0; i < overIndex; i++) {
+                 if (locks[items[i].id] === undefined) {
+                     targetMobileIndex++;
+                 }
+            }
+            
+            // Adjust if the overIndex itself is a mobile item and we are "after" it?
+            // The logic above essentially counts how many mobile slots are before the cursor.
+            // If dragging down, targetMobileIndex increases.
+            
+            const newMobileItems = [...mobileItems];
+            newMobileItems.splice(currentMobileIndex, 1);
+            newMobileItems.splice(targetMobileIndex, 0, draggedItem);
+            
+            // Rebuild Full List
+            const newItems = new Array(items.length).fill(null);
+            
+            // 1. Place Locked Items
+            Object.entries(locks).forEach(([id, index]) => {
+                const item = items.find(i => i.id === id);
+                if (item && index < newItems.length) {
+                    newItems[index] = item;
+                }
+            });
+            
+            // 2. Fill Gaps
+            let mobilePtr = 0;
+            for (let i = 0; i < newItems.length; i++) {
+                if (newItems[i] === null) {
+                    newItems[i] = newMobileItems[mobilePtr++];
+                }
+            }
+            
+            setItems(newItems);
+            
+            // Update dragged index to match new position
+            const newIndex = newItems.findIndex(i => i.id === draggedItem.id);
+            setDraggedItemIndex(newIndex);
+          };
+
+          const handleDragEnd = () => {
+            setDraggedItemIndex(null);
+          };
+
+          const [selectedIndex, setSelectedIndex] = React.useState(null);
+
+          const handleCardInteraction = (index) => {
+            if (gameWon) return;
+            
+            // Interaction logic for locked items? 
+            // If locked, maybe select it to see lock status, but can't swap.
+            if (lockedItems[items[index].id] !== undefined) return;
+
+            if (selectedIndex === null) {
+                setSelectedIndex(index);
+            } else if (selectedIndex === index) {
+                setSelectedIndex(null);
+            } else {
+                // Cannot swap with a locked item
+                if (lockedItems[items[index].id] !== undefined) {
+                    setSelectedIndex(null);
+                    return;
+                }
+
+                const newItems = [...items];
+                const temp = newItems[selectedIndex];
+                newItems[selectedIndex] = newItems[index];
+                newItems[index] = temp;
+                setItems(newItems);
+                setSelectedIndex(null);
+            }
+          };
+
+          const checkAnswer = () => {
+            let correctCount = 0;
+            const sortedByDate = [...items].sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            items.forEach((item, index) => {
+                if (item.id === sortedByDate[index].id) {
+                    correctCount++;
+                }
+            });
+
+            setCurrentScore(correctCount);
+
+            if (correctCount === 5) {
+                setStreak(s => s + 1);
+                setGameWon(true);
+                // Clear locks on win so user can click links? Or keep them? 
+                // Links are handled by click handler which checks gameWon.
+                setTimeout(() => setShowModal(true), 1000);
+            } else {
+                setStreak(0);
+                setShowModal(true);
+            }
+          };
+
+          const nextPuzzle = () => {
+            let nextIndex = currentSetIndex + 1;
+            if (nextIndex >= GAME_DATA.length) nextIndex = 0;
+            if (nextIndex === currentSetIndex) {
+                loadPuzzle();
+            } else {
+                setCurrentSetIndex(nextIndex);
+            }
+          };
+
+          const getCardStatus = (item, index) => {
+              const sortedByDate = [...items].sort((a, b) => new Date(a.date) - new Date(b.date));
+              return item.id === sortedByDate[index].id ? 'correct' : 'incorrect';
+          };
+
+          return (
+            <div className="min-h-screen bg-[#ffffff] text-[#000000] font-sans pb-12 selection:bg-[#c1ff72] selection:text-[#021f53]">
+              <div className="max-w-md mx-auto px-4 pt-8">
+                
+                <Header category={GAME_DATA[currentSetIndex].category} streak={streak} />
+                
+                {!gameWon && <Instructions />}
+
+                <div ref={listRef} className="relative space-y-2">
+                    <div className="absolute left-8 top-4 bottom-4 w-0.5 bg-[#d9d9d9] -z-10"></div>
+
+                    {items.map((item, index) => (
+                        <div 
+                            key={item.id}
+                            onClick={() => {
+                                if (!gameWon) {
+                                    handleCardInteraction(index);
+                                } else if (item.url) {
+                                    window.open(item.url, '_blank', 'noopener,noreferrer');
+                                }
+                            }}
+                            className={`
+                                transition-all duration-200 
+                                ${selectedIndex === index ? 'ring-2 ring-[#021f53] ring-offset-2 rounded-lg' : ''}
+                                ${gameWon && item.url ? 'cursor-pointer hover:translate-x-1 group' : ''}
+                            `}
+                        >
+                            <Card
+                                index={index}
+                                total={items.length}
+                                event={item}
+                                isDragging={draggedItemIndex === index}
+                                gameWon={gameWon}
+                                isHinted={hintedEventIds.has(item.id)}
+                                isLocked={lockedItems[item.id] !== undefined}
+                                status={getCardStatus(item, index)}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDragEnd={handleDragEnd}
+                                onTouchStart={() => {}} 
+                                onToggleLock={handleLockToggle}
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-8">
+                    {!gameWon ? (
+                        <>
+                            {/* HINT SECTION */}
+                            <div className="flex flex-col items-center mb-4">
+                                <div className="flex items-center gap-4 mb-2">
+                                    <div className="flex gap-1">
+                                        {[...Array(3)].map((_, i) => (
+                                            <div 
+                                                key={i} 
+                                                className={`w-6 h-1.5 rounded-full transition-colors ${i < hintsLeft ? 'bg-[#c1ff72]' : 'bg-[#d9d9d9]'}`}
+                                            ></div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={handleHint}
+                                        disabled={hintsLeft === 0}
+                                        className={`
+                                            flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all
+                                            ${hintsLeft > 0 
+                                                ? 'bg-[#ffffff] text-[#021f53] border border-[#021f53] hover:bg-[#021f53]/5' 
+                                                : 'bg-[#f0f0f0] text-gray-400 border border-transparent cursor-not-allowed'}
+                                        `}
+                                    >
+                                        <Icons.Lightbulb className="w-4 h-4" />
+                                        Hint
+                                    </button>
+                                </div>
+                                {hintMessage && (
+                                    <p className="text-sm text-red-500 font-medium animate-pulse">{hintMessage}</p>
+                                )}
+                            </div>
+
+                            <button
+                                onClick={checkAnswer}
+                                className="w-full py-4 bg-[#021f53] hover:opacity-90 text-[#ffffff] font-bold text-lg rounded-xl shadow-lg transform active:scale-95 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Icons.Check className="w-5 h-5" />
+                                Check Timeline
+                            </button>
+                        </>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="text-center p-4 bg-[#ffffff] rounded-xl shadow-sm border border-[#d9d9d9]">
+                                <p className="text-[#000000]/60 mb-2">Review your timeline results above</p>
+                                <p className="text-xs text-[#021f53] font-bold">Click any card to read the full story</p>
+                            </div>
+                            <button
+                                onClick={nextPuzzle}
+                                className="w-full py-3 px-4 bg-[#d9d9d9] hover:bg-[#c1ff72] text-[#021f53] font-bold rounded-xl flex items-center justify-center gap-2 transition-all"
+                            >
+                                <Icons.RefreshCw className="w-5 h-5" />
+                                Replay / Next Puzzle
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {showModal && (
+                    <ResultModal 
+                        isWinner={gameWon}
+                        score={currentScore}
+                        onTryAgain={() => setShowModal(false)}
+                        onReview={() => setShowModal(false)}
+                    />
+                )}
+                
+                <div className="mt-12 text-center">
+                    <p className="text-xs text-[#d9d9d9]">
+                        Tip: On desktop, drag to reorder. On mobile, tap to select and swap.
+                    </p>
+                </div>
+
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
