@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 // ─── Inline SVG Icon ─────────────────────────────────────────────────────────
 // Trophy icon used in the streak badge to the right of the navbar.
@@ -119,9 +120,15 @@ export function Navbar({ streak = 0 }: NavbarProps) {
             <span>{streak}</span>
           </div>
 
-          {/* Wallet connect button placeholder — will be added in Phase 4
-              when RainbowKit + SIWE authentication is integrated.
-              Usage: <ConnectButton /> from @rainbow-me/rainbowkit */}
+          {/* RainbowKit ConnectButton — renders a wallet connect/disconnect
+              button. `chainStatus="icon"` shows the chain logo instead of text,
+              `showBalance={false}` hides the ETH balance to save space, and
+              `accountStatus="avatar"` shows the ENS avatar or identicon. */}
+          <ConnectButton
+            chainStatus="icon"
+            showBalance={false}
+            accountStatus="avatar"
+          />
         </div>
       </div>
     </nav>
