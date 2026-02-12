@@ -23,8 +23,13 @@ export const siweAuthAdapter = createAuthenticationAdapter({
   },
 
   createMessage: ({ nonce, address, chainId }) => {
-    // Construct a structured SIWE message. This object is passed to
-    // RainbowKit's signing prompt and later to `verify`.
+    // Build the EIP-4361 SiweMessage and immediately serialize it to a
+    // plain-text string via `prepareMessage()`. Returning a string (rather
+    // than the SiweMessage object) is required because RainbowKit passes the
+    // return value directly to wagmi's `signMessageAsync({ message })`, and
+    // viem expects `message` to be a `string | { raw: Hex | ByteArray }`.
+    // A SiweMessage object has neither of those shapes, so viem would send
+    // `undefined` to the wallet's `personal_sign` RPC, causing signing to fail.
     return new SiweMessage({
       domain: window.location.host,
       address,
@@ -33,15 +38,16 @@ export const siweAuthAdapter = createAuthenticationAdapter({
       version: "1",
       chainId,
       nonce,
-    });
+    }).prepareMessage();
   },
 
   verify: async ({ message, signature }) => {
-    // `message` is the SiweMessage returned by `createMessage`.
-    // `prepareMessage()` serialises it to the EIP-4361 plain-text format
-    // which the server-side provider can parse back into a SiweMessage.
+    // `message` is now the EIP-4361 plain-text string returned by
+    // `createMessage` (already serialized). Pass it directly to NextAuth's
+    // credentials provider, which parses it back into a SiweMessage
+    // server-side for cryptographic verification.
     const result = await signIn("siwe", {
-      message: (message as SiweMessage).prepareMessage(),
+      message: message as string,
       signature,
       redirect: false,
     });
